@@ -20,6 +20,10 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
 
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]
+
+        os.makedirs("./nube/Descargas", exist_ok=True) #se crea la carpeta si no existe
+        download_path = f"./nube/Descargas/{filename}"
+
         with open(filename, 'wb') as f:
             while True:
                 data = client_socket.recv(1024)
@@ -28,9 +32,13 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                 f.write(data)
         print(f"Archivo descargado con exito: {filename}")
     
-    # Recepcion de respuesta del servidor
-    response = client_socket.recv(4096)
-    print(f"Respuesta: {response.decode()}")
+    elif command.startswith("list"): #listado de archivos
+        response = client_socket.recv(4096)
+        print(f"Archivos disponibles:\n{response.decode()}")
+    
+    else: # Recepcion de respuesta del servidor
+        response = client_socket.recv(4096)
+        print(f"Respuesta: {response.decode()}")
 
     client_socket.close()
 
