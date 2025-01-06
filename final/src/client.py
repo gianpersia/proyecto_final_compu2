@@ -9,18 +9,31 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
 
     client_socket.send(command.encode())
 
-    if command.startswith("upload") and filepath:
+    if command.startswith("upload") and filepath: #subida de archivo
         with open(filepath, 'rb') as f:
             while True:
                 data = f.read(1024)
                 if not data:
                     break
                 client_socket.send(data)
+        client_socket.send(b"EOF") #señal fin de archivo
 
+    elif command.startswith("download"): #descarga de archivo
+        filename = command.split()[1]
+        with open(filename, 'wb') as f:
+            while True:
+                data = client_socket.recv(1024)
+                if data == b"EOF":
+                    break
+                f.write(data)
+        print(f"Archivo descargado con exito: {filename}")
+    
+    # Recepcion de respuesta del servidor
     response = client_socket.recv(4096)
     print(f"Respuesta: {response.decode()}")
 
     client_socket.close()
+
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="Cliente nube")

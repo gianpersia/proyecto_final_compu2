@@ -39,7 +39,7 @@ def handle_upload(command, client_socket): #gestion de subida de archivos
     with open(file_path, 'wb') as f:
         while True:
             data = client_socket.recv(1024)
-            if not data:
+            if data == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
                 break
             f.write(data)
 
@@ -63,6 +63,7 @@ def handle_download(command, client_socket): #gestion de descarga de archivos
                     if not data:
                         break
                     client_socket.send(data)
+            client_socket.send(b"EOF") #señal de fin de transmision
 
 def handle_list(client_socket): #Archivos disponibles en la nube
 
