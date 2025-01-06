@@ -7,7 +7,7 @@ import os
 import threading
 
 #Directorio donde se guardaran los archivos
-STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final" 
+STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube" 
 
 def handle_client(client_socket): #gestion de la interaccion con un cliente
     try:
