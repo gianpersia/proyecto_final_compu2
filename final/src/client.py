@@ -21,3 +21,13 @@ response = client_socket.recv(4096)
     print(f"Respuesta: {response.decode()}")
 
     client_socket.close()
+
+if __name__ == "__main__":
+    parser = ap.ArgumentParser(description="Cliente nube")
+    parser.add_argument('--server', type=str, required=True, help='Direccion del servidor')
+    parser.add_argument("-p", '--port', type=int, default=8080, help='Puerto del servidor')
+    parser.add_argument("-u", '--upload', type=str, help='Ruta del archivo a subir')
+    parser.add_argument("-d", '--download', type=str, help='Nombre del archivo a descargar')
+    parser.add_argument("-l", '--list', action='store_true', help='Listar archivos disponibles')
+
+    
