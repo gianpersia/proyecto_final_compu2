@@ -21,8 +21,8 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]
 
-        os.makedirs("./nube/Descargas", exist_ok=True) #se crea la carpeta si no existe
-        download_path = f"./nube/Descargas/{filename}"
+        os.makedirs("../nube/Descargas", exist_ok=True) #se crea la carpeta si no existe
+        download_path = f"../nube/Descargas/{filename}"
 
         with open(filename, 'wb') as f:
             while True:
@@ -41,7 +41,6 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
         print(f"Respuesta: {response.decode()}")
 
     client_socket.close()
-
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="Cliente nube")

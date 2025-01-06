@@ -51,19 +51,19 @@ def handle_download(command, client_socket): #gestion de descarga de archivos
         client_socket.send(b"Falta nombre archivo\n")
         return
 
-        filename = command[1]
-        file_path = os.path.join(STORAGE_DIR, filename)
+    filename = command[1]
+    file_path = os.path.join(STORAGE_DIR, filename)
 
-        if not os.path.exists(file_path):
-            client_socket.send(b"Archivo no encontrado\n")
-        else:
-            with open(file_path, 'rb') as f:
-                while True:
-                    data = f.read(1024)
-                    if not data:
-                        break
-                    client_socket.send(data)
-            client_socket.send(b"EOF") #señal de fin de transmision
+    if not os.path.exists(file_path):
+        client_socket.send(b"Archivo no encontrado\n")
+    else:
+        with open(file_path, 'rb') as f:
+            while True:
+                data = f.read(1024)
+                if not data:
+                    break
+                client_socket.send(data)
+        client_socket.send(b"EOF") #señal de fin de transmision
 
 def handle_list(client_socket): #Archivos disponibles en la nube
 
