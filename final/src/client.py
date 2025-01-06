@@ -9,7 +9,7 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
 
     client_socket.send(command.encode())
 
-    if command.startswitch("upload") and filepath:
+    if command.startswith("upload") and filepath:
         with open(filepath, 'rb') as f:
             while True:
                 data = f.read(1024)
