@@ -11,21 +11,37 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
 
     if command.startswith("upload") and filepath: #subida de archivo
         #verificacion de que existe archivo
-        #enviar el nombre primero
-
+        if not os.path.exists(filepath):
+            print(f"Error: El archivo '{filepath}' no existe.")
+            return
+        
         filename = os.path.basename(filepath)
-        client_socket.send(filename.encode() + b"\n")
+        client_socket.send(filename.encode() + b"\n") #archivo
+        print(f"Nombre del archivo enviado: {filename}")
+
+        #enviar comando
+        client_socket.send(command.encode() + b"\n") #comando
+        print(f"Comando enviado: {command}")
+
+        #enviar nombre
+       # filename = os.path.basename(filepath)
+       # client_socket.send(filename.encode() + b"\n") #archivo
+       # print(f"Nombre del archivo enviado: {filename}")
+
+        #señal inicio
+        client_socket.send(b"START\n")
+        print("Señal de inicio enviada.")
 
         #despues el contenido (esto lo hago porque siempre se estaba subiendo el archivo vacio)
-        
         with open(filepath, 'rb') as f:
             while True:
                 data = f.read(1024)
                 if not data:
                     break
                 client_socket.send(data)
+                print(f"Enviando datos: {data[:20]}...") #log
         client_socket.send(b"EOF") #señal fin de archivo
-        print(f"Archivo {filepath} subido con exito.")
+        print(f"Señal EOF enviada.")
 
         #confirmacion del servidor porque si no me tira un error de excepcion broken pipe porque el cliente cierra la conexion antes de que el servidor termine
 

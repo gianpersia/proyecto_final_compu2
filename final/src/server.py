@@ -12,11 +12,13 @@ download_path = f"../nube/Descargas"
 
 def handle_client(client_socket): #gestion de la interaccion con un cliente
     try:
+        print("Cliente conectado.") #log
         data = client_socket.recv(1024).decode()
         command = data.strip().split()
         operation = command[0]
 
         if operation == "upload":
+            print("Operacion: upload") #log
             handle_upload(command, client_socket)
         elif operation == "download":
             handle_download(command, client_socket)
@@ -25,6 +27,7 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
         else:
             client_socket.send(b"Error: comando inexistente\n")
     except Exception as e:
+        print(f"Error en handle_client: {str(e)}") #log
         client_socket.send(f"Error: {str(e)}\n".encode())
 
     client_socket.close()
@@ -32,20 +35,34 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
 def handle_upload(command, client_socket): #gestion de subida de archivos
     #recibo primer el nombre del archivo
     try:
+        #recibo nombre
         filename = client_socket.recv(1024).decode().strip()
+        print(f"Recibiendo archivo: {filename}") #log
+
         if not filename or os.path.sep in filename:
             client_socket.send(b"Nombre de archivo no valido\n")
             return
     
         file_path = os.path.join(STORAGE_DIR, filename)
+        print(f"Guardando en: {file_path}") #log
+
+        #espera señal inicio por parte del cliente
+        start_signal = client_socket.recv(1024).decode().strip()
+        if start_signal != "START":
+            print("Error: Señal de inicio no recibida.")
+            client_socket.send(b"Error: Senal de inicio no recibida\n")
+            return
+
     
-        #Se abre archivo en modo binario para escribir los datos
+        #recibo contenido
         with open(file_path, 'wb') as f:
             while True:
                 data = client_socket.recv(1024)
                 if data == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
+                    print("EOF recibido, finalizando escritura.")
                     break
                 f.write(data)
+                print(f"Recibido: {data[:20]}...") #log
 
         client_socket.send(b"Archivo subido correctamente\n")
     except Exception as e:
