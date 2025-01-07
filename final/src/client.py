@@ -17,6 +17,7 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                     break
                 client_socket.send(data)
         client_socket.send(b"EOF") #señal fin de archivo
+        print(f"Archivo {filepath} subido con exito.")
 
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]
@@ -24,13 +25,13 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
         os.makedirs("../nube/Descargas", exist_ok=True) #se crea la carpeta si no existe
         download_path = f"../nube/Descargas/{filename}"
 
-        with open(filename, 'wb') as f:
+        with open(download_path, 'wb') as f:
             while True:
                 data = client_socket.recv(1024)
                 if data == b"EOF":
                     break
                 f.write(data)
-        print(f"Archivo descargado con exito: {filename}")
+        print(f"Archivo descargado con exito: {download_path}")
     
     elif command.startswith("list"): #listado de archivos
         response = client_socket.recv(4096)

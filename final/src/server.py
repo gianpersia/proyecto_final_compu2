@@ -7,7 +7,8 @@ import os
 import threading
 
 #Directorio donde se guardaran los archivos
-STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube/Subidos" 
+STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube/Subidos"
+download_path = f"../nube/Descargas"
 
 def handle_client(client_socket): #gestion de la interaccion con un cliente
     try:
@@ -36,17 +37,25 @@ def handle_upload(command, client_socket): #gestion de subida de archivos
     filename = command[1]
     file_path = os.path.join(STORAGE_DIR, filename)
 
-    with open(file_path, 'wb') as f:
-        while True:
-            data = client_socket.recv(1024)
-            if data == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
-                break
-            f.write(data)
+    #Veo de que el nombre sea valido
+    if os.path.sep in filename or filename.strip() == "": #se usa sep para evitar que el cliente introduzca rutas o nombres invalidos
+        client_socket.send(b"Nombre de archivo no valido\n")
+        return
+    
+    try:
+        #Se abre archivo en modo binario para escribir los datos
+        with open(file_path, 'wb') as f:
+            while True:
+                data = client_socket.recv(1024)
+                if data == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
+                    break
+                f.write(data)
 
-    client_socket.send(b"Archivo subido\n")
+        client_socket.send(b"Archivo subido correctamente\n")
+    except Exception as e:
+        client_socket.send(f"Error al guardar archivo: {str(e)}\n".encode())
 
 def handle_download(command, client_socket): #gestion de descarga de archivos
-
     if len(command) < 2:
         client_socket.send(b"Falta nombre archivo\n")
         return
