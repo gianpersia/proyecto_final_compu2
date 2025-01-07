@@ -10,6 +10,14 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
     client_socket.send(command.encode())
 
     if command.startswith("upload") and filepath: #subida de archivo
+        #verificacion de que existe archivo
+        #enviar el nombre primero
+
+        filename = os.path.basename(filepath)
+        client_socket.send(filename.encode() + b"\n")
+
+        #despues el contenido (esto lo hago porque siempre se estaba subiendo el archivo vacio)
+        
         with open(filepath, 'rb') as f:
             while True:
                 data = f.read(1024)
@@ -18,6 +26,14 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                 client_socket.send(data)
         client_socket.send(b"EOF") #señal fin de archivo
         print(f"Archivo {filepath} subido con exito.")
+
+        #confirmacion del servidor porque si no me tira un error de excepcion broken pipe porque el cliente cierra la conexion antes de que el servidor termine
+
+        response = client_socket.recv(1024)
+        print(f"Respuesta del servidor: {response.decode()}")
+
+        client_socket.close()
+        print("Conexion cerrada.")
 
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]

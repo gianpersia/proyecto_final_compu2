@@ -30,19 +30,15 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
     client_socket.close()
     
 def handle_upload(command, client_socket): #gestion de subida de archivos
-    if len(command) < 2:
-        client_socket.send(b"Falta nombre archivo\n")
-        return
-    
-    filename = command[1]
-    file_path = os.path.join(STORAGE_DIR, filename)
-
-    #Veo de que el nombre sea valido
-    if os.path.sep in filename or filename.strip() == "": #se usa sep para evitar que el cliente introduzca rutas o nombres invalidos
-        client_socket.send(b"Nombre de archivo no valido\n")
-        return
-    
+    #recibo primer el nombre del archivo
     try:
+        filename = client_socket.recv(1024).decode().strip()
+        if not filename or os.path.sep in filename:
+            client_socket.send(b"Nombre de archivo no valido\n")
+            return
+    
+        file_path = os.path.join(STORAGE_DIR, filename)
+    
         #Se abre archivo en modo binario para escribir los datos
         with open(file_path, 'wb') as f:
             while True:
@@ -53,7 +49,10 @@ def handle_upload(command, client_socket): #gestion de subida de archivos
 
         client_socket.send(b"Archivo subido correctamente\n")
     except Exception as e:
+        print(f"Error en handle_upload: {str(e)}")
         client_socket.send(f"Error al guardar archivo: {str(e)}\n".encode())
+    finally:
+        client_socket.close() #cierro la conexion al terminar
 
 def handle_download(command, client_socket): #gestion de descarga de archivos
     if len(command) < 2:
