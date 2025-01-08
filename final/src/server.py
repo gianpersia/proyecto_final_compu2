@@ -35,36 +35,39 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
 def handle_upload(command, client_socket): #gestion de subida de archivos
     #recibo primer el nombre del archivo
     try:
+        #espera señal inicio por parte del cliente
+        start_signal = client_socket.recv(1024).strip()
+        print(f"[DEBUG] Recibido START: {start_signal}") #log de datos crudos
+        if start_signal != b"START":
+            print("[DEBUG] Señal START no valida.")
+            client_socket.send(b"Error: Senal de inicio no recibida\n")
+            return
+        
         #recibo nombre
-        filename = client_socket.recv(1024).decode().strip()
-        print(f"Recibiendo archivo: {filename}") #log
+        filename = client_socket.recv(1024).strip()
+        print(f"[DEBUG] Recibido nombre archivo: {filename}") #log de datos crudos
+        #filename = filename.decode()
 
         if not filename or os.path.sep in filename:
             client_socket.send(b"Nombre de archivo no valido\n")
             return
     
         file_path = os.path.join(STORAGE_DIR, filename)
-        print(f"Guardando en: {file_path}") #log
-
-        #espera señal inicio por parte del cliente
-        start_signal = client_socket.recv(1024).decode().strip()
-        if start_signal != "START":
-            print("Error: Señal de inicio no recibida.")
-            client_socket.send(b"Error: Senal de inicio no recibida\n")
-            return
+        print(f"[DEBUG] Guardando en: {file_path}") #log
 
     
-        #recibo contenido
+        #recibo contenido y escribo
         with open(file_path, 'wb') as f:
             while True:
                 data = client_socket.recv(1024)
-                if data == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
-                    print("EOF recibido, finalizando escritura.")
+                #print(f"[DEBUG] Recibido dato valido: {data[:20]}") #log datos crudos
+                if data.strip() == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
+                    print("[DEBUG] EOF recibido, finalizando escritura.")
                     break
                 f.write(data)
-                print(f"Recibido: {data[:20]}...") #log
 
         client_socket.send(b"Archivo subido correctamente\n")
+        print(f"[DEBUG] Archivo guardado correctamente.")
     except Exception as e:
         print(f"Error en handle_upload: {str(e)}")
         client_socket.send(f"Error al guardar archivo: {str(e)}\n".encode())

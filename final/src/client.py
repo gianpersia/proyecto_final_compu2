@@ -7,30 +7,24 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server, port))
 
-    client_socket.send(command.encode())
+    client_socket.send(command.encode() + b"\n")
+    print(f"[DEBUG] Enviado comando: {command}")
 
     if command.startswith("upload") and filepath: #subida de archivo
         #verificacion de que existe archivo
         if not os.path.exists(filepath):
             print(f"Error: El archivo '{filepath}' no existe.")
+            client_socket.close()
             return
         
-        filename = os.path.basename(filepath)
-        client_socket.send(filename.encode() + b"\n") #archivo
-        print(f"Nombre del archivo enviado: {filename}")
-
-        #enviar comando
-        client_socket.send(command.encode() + b"\n") #comando
-        print(f"Comando enviado: {command}")
-
-        #enviar nombre
-       # filename = os.path.basename(filepath)
-       # client_socket.send(filename.encode() + b"\n") #archivo
-       # print(f"Nombre del archivo enviado: {filename}")
-
-        #señal inicio
+         #señal inicio
         client_socket.send(b"START\n")
-        print("Señal de inicio enviada.")
+        print("[DEBUG] Enviada señal START")
+       
+        #enviar nombre
+        filename = os.path.basename(filepath)
+        client_socket.send((filename + "\n").encode()) #archivo
+        print(f"[DEBUG] Enviado nombre archivo: {filename}")
 
         #despues el contenido (esto lo hago porque siempre se estaba subiendo el archivo vacio)
         with open(filepath, 'rb') as f:
@@ -39,17 +33,15 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                 if not data:
                     break
                 client_socket.send(data)
-                print(f"Enviando datos: {data[:20]}...") #log
-        client_socket.send(b"EOF") #señal fin de archivo
-        print(f"Señal EOF enviada.")
+                print(f"[DEBUG] Enviado datos: {data[:20]}...") #log
+
+        client_socket.send(b"EOF\n") #señal fin de archivo con delimitador explicito
+        print(f"[DEBUG] Enviada señal EOF.")
 
         #confirmacion del servidor porque si no me tira un error de excepcion broken pipe porque el cliente cierra la conexion antes de que el servidor termine
 
         response = client_socket.recv(1024)
-        print(f"Respuesta del servidor: {response.decode()}")
-
-        client_socket.close()
-        print("Conexion cerrada.")
+        print(f"[DEBUG] Respuesta del servidor: {response.decode()}")
 
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]
@@ -68,12 +60,9 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
     elif command.startswith("list"): #listado de archivos
         response = client_socket.recv(4096)
         print(f"Archivos disponibles:\n{response.decode()}")
-    
-    else: # Recepcion de respuesta del servidor
-        response = client_socket.recv(4096)
-        print(f"Respuesta: {response.decode()}")
 
     client_socket.close()
+    print("[DEBUG] Conexion cerrada.")
 
 if __name__ == "__main__":
     parser = ap.ArgumentParser(description="Cliente nube")
