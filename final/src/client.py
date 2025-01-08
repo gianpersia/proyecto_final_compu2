@@ -20,6 +20,12 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
          #señal inicio
         client_socket.send(b"START\n")
         print("[DEBUG] Enviada señal START")
+
+        #enviar longitud
+        #filename = os.path.basename(filepath)
+        #filename_length = f"{len(filename):04}" #longitud como string de 4 caracteres
+        #client_socket.send(filename_length.encode())
+        #print(f"[DEBUG] Enviada longitud del nombre del archivo: {filename_length}")
        
         #enviar nombre
         filename = os.path.basename(filepath)
@@ -35,7 +41,7 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                 client_socket.send(data)
                 print(f"[DEBUG] Enviado datos: {data[:20]}...") #log
 
-        client_socket.send(b"EOF\n") #señal fin de archivo con delimitador explicito
+        client_socket.send(b"<END>") #señal fin de archivo con delimitador unico
         print(f"[DEBUG] Enviada señal EOF.")
 
         #confirmacion del servidor porque si no me tira un error de excepcion broken pipe porque el cliente cierra la conexion antes de que el servidor termine

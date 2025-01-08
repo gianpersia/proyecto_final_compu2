@@ -35,16 +35,31 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
 def handle_upload(command, client_socket): #gestion de subida de archivos
     #recibo primer el nombre del archivo
     try:
+        buffer = b"" #buffer interno para manejar datos fragmentados
+
         #espera señal inicio por parte del cliente
-        start_signal = client_socket.recv(1024).strip()
-        print(f"[DEBUG] Recibido START: {start_signal}") #log de datos crudos
-        if start_signal != b"START":
+        while b"\n" not in buffer: # leo hasta salto de linea
+            buffer += client_socket.recv(1024)
+            start_signal, buffer = buffer.split(b"\n", 1) #separo senal del resto
+        
+        
+        #start_signal = client_socket.recv(1024).decode().strip()
+        print(f"[DEBUG] Recibido START: {start_signal.decode().strip()}") #log de datos crudos
+        if start_signal.decode().strip() != "START":
             print("[DEBUG] Señal START no valida.")
             client_socket.send(b"Error: Senal de inicio no recibida\n")
             return
         
+        #agrego longitud nombre archivo
+        #filename_length = int(client_socket.recv(4).decode())
+        #print(f"[DEBUG] Longitud del nombre del archivo: {filename_length}")
+        
         #recibo nombre
-        filename = client_socket.recv(1024).strip()
+        while b"\n" not in buffer:
+            buffer += client_socket.recv(1024)
+        filename, buffer = buffer.split(b"\n", 1) #separa nombre del resto
+        filename = filename.decode().strip()
+        #filename = client_socket.recv(1024).decode().strip()
         print(f"[DEBUG] Recibido nombre archivo: {filename}") #log de datos crudos
         #filename = filename.decode()
 
@@ -59,12 +74,21 @@ def handle_upload(command, client_socket): #gestion de subida de archivos
         #recibo contenido y escribo
         with open(file_path, 'wb') as f:
             while True:
-                data = client_socket.recv(1024)
+                if b"<END>" in buffer:
+                    data, _ = buffer.split(b"<END>", 1)
+                    f.write(data)
+                #data = client_socket.recv(1024)
+                #if data.endswith(b"<END>"): #senal fin archivo
+                #    f.write(data[:-5]) #escribo sin el delimitador END
                 #print(f"[DEBUG] Recibido dato valido: {data[:20]}") #log datos crudos
-                if data.strip() == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
+                #if data.strip() == b"EOF": #señal de fin de archivo, al reconocer esta señal, el servidor deja de escribir el archivo
+                 #   print("[DEBUG] EOF recibido, finalizando escritura.")
+                  #  break
                     print("[DEBUG] EOF recibido, finalizando escritura.")
                     break
-                f.write(data)
+                #f.write(data)
+                f.write(buffer)
+                buffer = client_socket.recv(1024) #leo mas datos
 
         client_socket.send(b"Archivo subido correctamente\n")
         print(f"[DEBUG] Archivo guardado correctamente.")
