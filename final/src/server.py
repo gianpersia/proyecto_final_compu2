@@ -34,6 +34,7 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
     
 def handle_upload(command, client_socket): #gestion de subida de archivos
     buffer = b""
+    file_path = None #inicializo file_path
     try:
         print("[DEBUG] Esperando datos del cliente...")
         while True:
@@ -58,8 +59,17 @@ def handle_upload(command, client_socket): #gestion de subida de archivos
             filename, buffer = buffer.split(b"\n", 1) #separa nombre del resto
             filename = filename.decode().strip()
             print(f"[DEBUG] Recibido nombre archivo: {filename}") #log de datos crudos
+            if not filename:
+                client_socket.send(b"Error: Nombre de archivo no valido\n")
+                return
             file_path = os.path.join(STORAGE_DIR, filename)
             print(f"[DEBUG] Guardando en: {file_path}") #log
+
+        #valido asignacion de file_path
+        if not file_path:
+            print("[DEBUG] Error: No se puedo asignar el nombre del archivo.")
+            client_socket.send(b"Error: No se recibio nombre del archivo\n")
+            return
         
         #recibo contenido y escribo
         with open(file_path, 'wb') as f:
