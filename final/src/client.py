@@ -2,15 +2,16 @@ import socket
 import argparse as ap
 import sys
 import os
+import time
 
 def send_command(server, port, command, filepath=None): #indicaciones para el servidor
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server, port))
 
-    client_socket.send(command.encode() + b"\n")
+    client_socket.sendall((command + "\n").encode())
     print(f"[DEBUG] Enviado comando: {command}")
 
-    if command.startswith("upload") and filepath: #subida de archivo
+    if command == "upload" and filepath: #subida de archivo
         #verificacion de que existe archivo
         if not os.path.exists(filepath):
             print(f"Error: El archivo '{filepath}' no existe.")
@@ -18,7 +19,7 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
             return
         
          #señal inicio
-        client_socket.send(b"START\n")
+        client_socket.sendall(b"START\n")
         print("[DEBUG] Enviada señal START")
 
         #enviar longitud
@@ -29,7 +30,7 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
        
         #enviar nombre
         filename = os.path.basename(filepath)
-        client_socket.send((filename + "\n").encode()) #archivo
+        client_socket.sendall((filename + "\n").encode()) #archivo
         print(f"[DEBUG] Enviado nombre archivo: {filename}")
 
         #despues el contenido (esto lo hago porque siempre se estaba subiendo el archivo vacio)
@@ -38,16 +39,19 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
                 data = f.read(1024)
                 if not data:
                     break
-                client_socket.send(data)
-                print(f"[DEBUG] Enviado datos: {data[:20]}...") #log
-
-        client_socket.send(b"<END>") #señal fin de archivo con delimitador unico
+                client_socket.sendall(data)
+                print(f"[DEBUG] Enviando datos: {data[:20]}...") #log
+        client_socket.sendall(b"<END>\n") #señal fin de archivo con delimitador unico
         print(f"[DEBUG] Enviada señal EOF.")
 
         #confirmacion del servidor porque si no me tira un error de excepcion broken pipe porque el cliente cierra la conexion antes de que el servidor termine
 
         response = client_socket.recv(1024)
         print(f"[DEBUG] Respuesta del servidor: {response.decode()}")
+
+        #time.sleep(2) #espero 2 seg
+        client_socket.close()
+        print("[DEBUG] Conexion cerrada.")
 
     elif command.startswith("download"): #descarga de archivo
         filename = command.split()[1]
@@ -81,7 +85,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.upload:
-        command = f"upload {os.path.basename(args.upload)}"
+        command = "upload"
         send_command(args.server, args.port, command, args.upload)
     elif args.download:
         command = f"download {args.download}"
