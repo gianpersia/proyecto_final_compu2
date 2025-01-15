@@ -13,30 +13,39 @@ download_path = f"../nube/Descargas"
 def handle_client(client_socket): #gestion de la interaccion con un cliente
     try:
         print("Cliente conectado.") #log
-        data = client_socket.recv(1024).decode()
-        command = data.strip().split()
-        operation = command[0]
+        data = client_socket.recv(1024)
+        if not data:
+            client_socket.close()
+            return
+    
+        lines = data.split(b"\n", 1)
+        command_line = lines[0].decode().strip()
+        
+        leftover = b""
+        if len(lines) > 1:
+            leftover = lines[1]
+    
+        command_parts = command_line.split()
+        operation = command_parts[0]
 
         if operation == "upload":
             print("Operacion: upload") #log
-            handle_upload(client_socket)
+            handle_upload(client_socket, leftover)
         elif operation == "download":
             print("Operacion: download")
-            handle_download(command, client_socket)
+            handle_download(command_parts, client_socket)
         elif operation == "list":
             print("Operacion: listar")
             handle_list(client_socket)
         else:
-            client_socket.send(b"Error: comando inexistente\n")
+            client_socket.sendall(b"Error: comando inexistente\n")
     except Exception as e:
-        print(f"Error en handle_client: {e}") #log
-        #client_socket.send(f"Error: {str(e)}\n".encode())
+        print(f"Error en handle_client: {e}")
     finally:
         client_socket.close()
     
-def handle_upload(client_socket): #gestion de subida de archivos
+def handle_upload(client_socket, buffer): #gestion de subida de archivos
     try:
-        buffer = b""
     #file_path = None #inicializo file_path
     #try:
     #    print("[DEBUG] Esperando datos del cliente...")
@@ -55,7 +64,7 @@ def handle_upload(client_socket): #gestion de subida de archivos
             if not data:
                 raise ValueError("[DEBUG] Conexion cerrada antes de recibir la senal START")
             buffer += data
-            print(f"[DEBUG] Buffer actual: {buffer}")
+            print(f"[DEBUG] Buffer actual (bscando START): {buffer}")
 
         _, buffer = buffer.split(b"START\n", 1)
             #start_signal, buffer = buffer.split(b"\n", 1)
@@ -78,7 +87,7 @@ def handle_upload(client_socket): #gestion de subida de archivos
             if not data:
                 raise ValueError("[DEBUG] Conexion cerrada antes de recibir el nombre del archivo")
             buffer += data
-            print(f"[DEBUG] Buffer actual: {buffer}")
+            print(f"[DEBUG] Buffer actual (buscando filename): {buffer}")
         
         #if b"\n" in buffer:
             #buffer += client_socket.recv(1024)
@@ -123,8 +132,7 @@ def handle_upload(client_socket): #gestion de subida de archivos
             
                 #return
                     break
-                if buffer:
-                    f.write(buffer)
+                f.write(buffer)
                 buffer = client_socket.recv(1024)
                 if not buffer:
                     raise ValueError("[DEBUG] Conexion cerrada antes de completar el archivo")
@@ -138,14 +146,14 @@ def handle_upload(client_socket): #gestion de subida de archivos
       #  client_socket.close() #cierro la conexion al terminar
         print("[DEBUG] Conexion cerrada en handle_upload.")
 
-def handle_download(command, client_socket): #gestion de descarga de archivos
-    print(f"[DEBUG] Comando de descarga: {command}")
-    if len(command) < 2:
+def handle_download(command_parts, client_socket): #gestion de descarga de archivos
+    print(f"[DEBUG] Comando de descarga: {command_parts}")
+    if len(command_parts) < 2:
         client_socket.send(b"Falta nombre archivo\n")
         print("[DEBUG] Falta nombre archivo.")
         return
 
-    filename = command[1]
+    filename = command_parts[1]
     file_path = os.path.join(STORAGE_DIR, filename)
     print(f"[DEBUG] Buscando archivo: {file_path}")
 

@@ -51,6 +51,8 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
             try:   
                 response = client_socket.recv(1024)
                 print(f"[DEBUG] Respuesta del servidor: {response.decode()}")
+            except socket.timeout:
+                print(f"[DEBUG] Error: Tiempo de espera excedido al recibir respuesta del servidor.")
             except socket.error as e:
                 print(f"[DEBUG] Error al recibir respuesta del servidor: {str(e)}")
     
