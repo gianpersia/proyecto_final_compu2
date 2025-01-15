@@ -80,6 +80,10 @@ def send_command(server, port, command, filepath=None): #indicaciones para el se
         elif command.startswith("list"): #listado de archivos
             response = client_socket.recv(4096)
             print(f"Archivos disponibles:\n{response.decode()}")
+
+        elif command.startswith("delete"):
+            response = client_socket.recv(1024).decode()
+            print(response)
         
     except Exception as e:
         print(f"[DEBUG] Error durante la operación: {str(e)}")
@@ -95,6 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", '--upload', type=str, help='Ruta del archivo a subir')
     parser.add_argument("-d", '--download', type=str, help='Nombre del archivo a descargar')
     parser.add_argument("-l", '--list', action='store_true', help='Listar archivos disponibles')
+    parser.add_argument("-r", '--remove', type=str, help='Eliminar archivo en el servidor')
 
     args = parser.parse_args()
 
@@ -107,5 +112,8 @@ if __name__ == "__main__":
     elif args.list:
         command = "list"
         send_command(args.server, args.port, command)
+    elif args.remove:
+        command = f"delete {args.remove}"
+        send_command(args.server, args.port, command)
     else:
-        print("Comando incorrecto, por favor introducir un comando valido: -u, -d, -l")
+        print("Comando incorrecto, por favor introducir un comando valido: -u, -d, -l o -r.")

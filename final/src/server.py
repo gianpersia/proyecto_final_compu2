@@ -37,6 +37,8 @@ def handle_client(client_socket): #gestion de la interaccion con un cliente
         elif operation == "list":
             print("Operacion: listar")
             handle_list(client_socket)
+        elif operation == "delete":
+            handle_delete(command_parts, client_socket)
         else:
             client_socket.sendall(b"Error: comando inexistente\n")
     except Exception as e:
@@ -177,6 +179,26 @@ def handle_list(client_socket): #Archivos disponibles en la nube
         client_socket.send(b"No se encontraron archivos\n")
     else:
         client_socket.send("\n".join(files).encode() + b"\n")
+
+def handle_delete(command_parts, client_socket):
+    if len(command_parts) < 2:
+        client_socket.sendall(b"Falta nombre de archivo\n")
+        return
+    
+    filename = command_parts[1]
+    file_path = os.path.join(STORAGE_DIR, filename)
+
+    if not os.path.exists(file_path):
+        client_socket.sendall(b"Archivo no encontrado\n")
+        print(f"[DEBUG] no se pudo eliminar. El archivo '{filename} no existe en el servidor.")
+    else:
+        try:
+            os.remove(file_path)
+            client_socket.sendall(b"Archivo eliminado con exito\n")
+            print(f"[DEBUG] Archivo '{filename} eliminado correctamente.")
+        except Exception as e:
+            client_socket.sendall(b"Error al eliminar el archivo\n")
+            print(f"[DEBUG] Error al intentar eliminar '{filename}': {e}")
 
 def start_server(port): #inicio de servidor y conexiones entrantes
     if not os.path.exists(STORAGE_DIR):
