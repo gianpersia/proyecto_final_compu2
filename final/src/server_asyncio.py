@@ -1,12 +1,15 @@
-# server_asyncio.py
 import asyncio
 import multiprocessing
+from celery_app import upload_file, download_file, delete_file, list_files
 
 from file_worker import file_process_main  # Importamos la función del worker
 
+HOST = "0.0.0.0"
+PORT = 8080
+
 # Creamos las colas de comunicación
-request_queue = multiprocessing.Queue()
-response_queue = multiprocessing.Queue()
+#request_queue = multiprocessing.Queue()
+#response_queue = multiprocessing.Queue()
 
 async def handle_client(reader, writer):
     addr = writer.get_extra_info('peername')
@@ -50,13 +53,6 @@ async def handle_client(reader, writer):
 
 
 async def handle_upload_async(parts, reader, writer):
-    """
-    Espera la secuencia:
-      1) START\n
-      2) filename\n
-      3) contenido hasta <END>
-    Luego envía la petición (upload) al worker y espera la respuesta.
-    """
     # 1) Leer 'START\n'
     start_line = await reader.readline()
     if start_line.strip() != b"START":
@@ -88,87 +84,103 @@ async def handle_upload_async(parts, reader, writer):
             content_buffer += chunk
 
     # Encolar la petición al worker
-    request_queue.put(("upload", filename, content_buffer))
-    # Esperar la respuesta
-    result = response_queue.get()  # bloquea este hilo/corrutina hasta que llegue algo
+    #request_queue.put(("upload", filename, content_buffer))
+    #llamo a celery
+    result_async = upload_file.delay(filename, content_buffer)
+    result = result_async.get()
 
-    if result[0] == "ok":
-        writer.write(f"{result[1]}\n".encode())  # Mensaje de éxito
-    else:
-        writer.write(f"Error: {result[1]}\n".encode())
+    # Esperar la respuesta
+    writer.write(f"{result}\n".encode())
     await writer.drain()
+    #result = response_queue.get()  # bloquea este hilo/corrutina hasta que llegue algo
+
+    #if result[0] == "ok":
+    #    writer.write(f"{result[1]}\n".encode())  # Mensaje de éxito
+    #else:
+    #    writer.write(f"Error: {result[1]}\n".encode())
+    #await writer.drain()
 
 
 async def handle_download_async(parts, writer):
-    """
-    Espera "download filename", donde:
-      parts[0] = "download"
-      parts[1] = "filename"
-    """
     if len(parts) < 2:
         writer.write(b"Error: falta nombre de archivo\n")
         await writer.drain()
         return
 
     filename = parts[1]
+    result_async = download_file.delay(filename)
+    file_bytes = result_async.get()
+
+    if file_bytes is None:
+        writer.write(b"Error: Archivo no encontrado\n")
+    else:
+        writer.write(file_bytes)
+        writer.write(b"EOF")
+    await writer.drain()
 
     # Encolar la petición
-    request_queue.put(("download", filename))
-    result = response_queue.get()
+    #request_queue.put(("download", filename))
+    #result = response_queue.get()
 
-    if result[0] == "ok":
-        file_content = result[1]  # bytes
-        writer.write(file_content)
-        await writer.drain()
+    #if result[0] == "ok":
+    #    file_content = result[1]  # bytes
+    #    writer.write(file_content)
+    #    await writer.drain()
         # Al final, enviamos 'EOF' para indicar fin
-        writer.write(b"EOF")
-        await writer.drain()
-    else:
-        writer.write(f"Error: {result[1]}\n".encode())
-        await writer.drain()
+    #    writer.write(b"EOF")
+    #    await writer.drain()
+    #else:
+    #    writer.write(f"Error: {result[1]}\n".encode())
+    #    await writer.drain()
 
 
 async def handle_delete_async(parts, writer):
-    """
-    Espera "delete filename"
-    """
     if len(parts) < 2:
         writer.write(b"Error: falta nombre de archivo\n")
         await writer.drain()
         return
 
     filename = parts[1]
-    request_queue.put(("delete", filename))
-    result = response_queue.get()
-
-    if result[0] == "ok":
-        writer.write(f"{result[1]}\n".encode())
-    else:
-        writer.write(f"Error: {result[1]}\n".encode())
+    result_async = delete_file.delay(filename)
+    message = result_async.get()
+    writer.write(f"{message}\n".encode())
     await writer.drain()
+
+    #request_queue.put(("delete", filename))
+    #result = response_queue.get()
+
+    #if result[0] == "ok":
+    #    writer.write(f"{result[1]}\n".encode())
+    #else:
+    #    writer.write(f"Error: {result[1]}\n".encode())
+    #await writer.drain()
 
 
 async def handle_list_async(writer):
-    request_queue.put(("list", None))
-    result = response_queue.get()
-
-    if result[0] == "ok":
-        file_list = result[1]  # lista de archivos
-        if not file_list:
-            writer.write(b"No se encontraron archivos\n")
-        else:
-            writer.write(("\n".join(file_list) + "\n").encode())
+    result_async = list_files.delay()
+    files = result_async.get()
+    if not files:
+        writer.write(b"No se encontraron archivos\n")
     else:
-        writer.write(f"Error: {result[1]}\n".encode())
+        writer.write(("\n".join(files) + "\n").encode())
     await writer.drain()
 
+    #request_queue.put(("list", None))
+    #result = response_queue.get()
 
-async def main_server(port=8080):
-    server = await asyncio.start_server(
-        handle_client,
-        "0.0.0.0",  # Aceptar conexiones de cualquier interfaz
-        port
-    )
+    #if result[0] == "ok":
+    #    file_list = result[1]  # lista de archivos
+    #    if not file_list:
+    #        writer.write(b"No se encontraron archivos\n")
+    #    else:
+    #        writer.write(("\n".join(file_list) + "\n").encode())
+    #else:
+    #    writer.write(f"Error: {result[1]}\n".encode())
+    #await writer.drain()
+
+
+async def main_server():
+    server = await asyncio.start_server(handle_client, HOST, PORT)
     addrs = ", ".join(str(sock.getsockname()) for sock in server.sockets)
     print(f"[DEBUG] Servidor corriendo en {addrs}")
     async with server:
@@ -176,22 +188,19 @@ async def main_server(port=8080):
 
 
 def run_server_asyncio():
-    # 1) Iniciar el proceso worker
-    worker_process = multiprocessing.Process(
-        target=file_process_main,
-        args=(request_queue, response_queue)
-    )
-    worker_process.start()
+    #worker_process = multiprocessing.Process(
+    #    target=file_process_main,
+    #    args=(request_queue, response_queue)
+    #)
+    #worker_process.start()
 
-    # 2) Iniciar el bucle asyncio
     try:
-        asyncio.run(main_server(8080))
+        asyncio.run(main_server())
     except KeyboardInterrupt:
         print("[DEBUG] Deteniendo servidor...")
 
-    # 3) Al terminar, avisamos al worker que acabe
-    request_queue.put(None)
-    worker_process.join()
+    #request_queue.put(None)
+    #worker_process.join()
 
 
 if __name__ == "__main__":
