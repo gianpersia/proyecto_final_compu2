@@ -1,5 +1,9 @@
 from celery import Celery
 import os
+from db import init_db, DB_PATH
+import sqlite3
+
+init_db()
 
 celery_app = Celery("nube_app", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0")
 
@@ -10,10 +14,24 @@ def upload_file(filename, content_bytes):
     #subir archivos
     if not os.path.exists(STORAGE_DIR):
         os.makedirs(STORAGE_DIR)
+    
     file_path = os.path.join(STORAGE_DIR, filename)
     with open(file_path, "wb") as f:
         f.write(content_bytes)
-    return f"Archivo '{filename}' subido correctamente."
+    
+    size = len(content_bytes)
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        try:
+            c.execute("""
+                INSERT INTO FILES (filename, size)
+                VALUES (?, ?)
+            """, (filename, size))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return f"Error: El archivo '{filename} ya esta registrado en la DB."
+        
+    return f"Archivo '{filename}' subido correctamente (size={size} bytes)."
 
 @celery_app.task
 def download_file(filename):
