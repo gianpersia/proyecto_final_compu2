@@ -48,10 +48,22 @@ def delete_file(filename):
     if not os.path.exists(file_path):
         return f"Error: Archivo '{filename}' no existe."
     os.remove(file_path)
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("""
+            DELETE FROM files
+            WHERE filename = ?
+        """, (filename,))
+        conn.commit()
+
     return f"Archivo '{filename}' eliminado."
 
 @celery_app.task
 def list_files():
-    if not os.path.exists(STORAGE_DIR):
-        return []
-    return os.listdir(STORAGE_DIR)
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute("SELECT filename FROM files")
+        rows = c.fetchall()
+    
+    filenames = [row[0] for row in rows]
+    return filenames
