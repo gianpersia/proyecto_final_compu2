@@ -2,12 +2,12 @@ import socket
 import argparse
 import os
 
-def send_command(server, port, command, filepath=None):
+def send_command(server, port, command, filepath=None, username=None):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect((server, port))
 
     try:
-        # 1) Enviamos la línea de comando, e.g. "upload\n" o "download file.txt\n"
+        #envio la línea de comando, "upload\n" o "download file.txt\n"
         client_socket.sendall((command + "\n").encode())
 
         if command == "upload" and filepath:
@@ -15,13 +15,16 @@ def send_command(server, port, command, filepath=None):
                 print(f"Error: No existe el archivo local '{filepath}'")
                 return
 
-            # 2) Enviar START\n
+            #envio START\n
             client_socket.sendall(b"START\n")
-            # 3) Enviar filename\n
+            #envio filename\n
             filename = os.path.basename(filepath)
             client_socket.sendall((filename + "\n").encode())
 
-            # 4) Enviar contenido, y luego <END>
+            #envio usuario
+            client_socket.sendall((username + "\n").encode())
+
+            #envio contenido, y luego <END>
             with open(filepath, 'rb') as f:
                 while True:
                     data = f.read(1024)
@@ -30,33 +33,35 @@ def send_command(server, port, command, filepath=None):
                     client_socket.sendall(data)
             client_socket.sendall(b"<END>\n")  # delimitador
 
-            # Recibir respuesta
+            #recibo respuesta
             response = client_socket.recv(4096).decode()
             print("Servidor dice:", response.strip())
 
         elif command.startswith("download"):
-            # Esperamos recibir el contenido y luego "EOF"
-            # 'command' podría ser "download file.txt"
-            response_data = b""
-            while True:
-                chunk = client_socket.recv(1024)
-                if not chunk:
-                    # Se cerró conexión
-                    break
-                # Buscamos "EOF"
-                if b"EOF" in chunk:
-                    # Separar la parte previa a "EOF"
-                    before_eof, _, _ = chunk.partition(b"EOF")
-                    response_data += before_eof
-                    break
-                else:
-                    response_data += chunk
-            
-            # Ahora, revisamos si se trata de un error
-            # Podría ser "Error: Archivo no encontrado"
-            if response_data.startswith(b"Error:"):
-                print(response_data.decode())
+            response = client_socket.recv(1024)
+            if response.startswith(b"Error:"):
+                print(response.decode())
             else:
+            #espero recibir el contenido y luego la senal de finalizacion
+            # 'command' podría ser "download file.txt"
+                content = response
+                while True:
+                    chunk = client_socket.recv(1024)
+                    if not chunk:
+                        # Se cerró conexión
+                        break
+                    # Buscamos "EOF"
+                    if b"EOF" in chunk:
+                        # Separar la parte previa a "EOF"
+                        before_eof, _, _ = chunk.partition(b"EOF")
+                        content += before_eof
+                        break
+                    else:
+                        content += chunk
+            
+            # reviso si se trata de un error
+            # Podría ser "Error: Archivo no encontrado"
+           
                 DOWNLOAD_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube/Descargas"
                 print("[DEBUG] Creando carpeta en:", DOWNLOAD_DIR)
                 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -64,16 +69,16 @@ def send_command(server, port, command, filepath=None):
                 filename = command.split()[1]
                 download_path = os.path.join(DOWNLOAD_DIR, filename)
                 with open(download_path, 'wb') as f:
-                    f.write(response_data)
-                print(f"Archivo descargado: {download_path}")
+                    f.write(content)
+                    print(f"Archivo descargado: {download_path}")
 
         elif command.startswith("delete"):
-            # Esperamos un mensaje "Archivo '...' eliminado." o "Error: ..."
+            #eperamos un mensaje de archivo eliminado o de error."
             response = client_socket.recv(1024).decode()
             print(response.strip())
 
         elif command.startswith("list"):
-            # Recibimos la lista de archivos o mensaje
+            #recibo la lista de archivos o mensaje
             response = client_socket.recv(4096).decode()
             print(response.strip())
 
@@ -90,14 +95,17 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--server", required=True)
     parser.add_argument("-p", "--port", type=int, default=8080)
     parser.add_argument("-u", "--upload")
+    parser.add_argument("-n", "--username", help="Nombre del usuario")
     parser.add_argument("-d", "--download")
     parser.add_argument("-r", "--remove")
     parser.add_argument("-l", "--list", action="store_true")
     args = parser.parse_args()
 
     if args.upload:
-        command = "upload"
-        send_command(args.server, args.port, command, args.upload)
+        if not args.username:
+            print("Error: El argumento --username es obligatorio para 'upload'.")
+        else:
+            send_command(args.server, args.port, "upload", args.upload, args.username)
     elif args.download:
         command = f"download {args.download}"
         send_command(args.server, args.port, command)

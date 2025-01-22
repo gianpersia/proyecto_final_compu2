@@ -7,7 +7,7 @@ from file_worker import file_process_main  # Importamos la función del worker
 HOST = "0.0.0.0"
 PORT = 8080
 
-# Creamos las colas de comunicación
+#la mayoria de los comentarios fue del inicio del proyecto antes de implementar colas
 #request_queue = multiprocessing.Queue()
 #response_queue = multiprocessing.Queue()
 
@@ -16,15 +16,15 @@ async def handle_client(reader, writer):
     print(f"[DEBUG] Cliente conectado: {addr}")
 
     try:
-        # Leer la primera línea, por ejemplo "upload\n", "download file.txt\n", etc.
+        #leo la primera línea, por ejemplo "upload\n", "download file.txt\n", etc.
         data = await reader.readline()  
         if not data:
-            # Cliente cerró la conexión
+            #cierro la conexion del cliente
             writer.close()
             await writer.wait_closed()
             return
         
-        line = data.decode().strip()  # p.ej.: "upload", "download file.txt"
+        line = data.decode().strip()  # "upload", "download file.txt"
         parts = line.split()
         operation = parts[0]  # "upload", "download", etc.
 
@@ -53,43 +53,45 @@ async def handle_client(reader, writer):
 
 
 async def handle_upload_async(parts, reader, writer):
-    # 1) Leer 'START\n'
+    #leo 'START\n'
     start_line = await reader.readline()
     if start_line.strip() != b"START":
         writer.write(b"Error: falto START\n")
         await writer.drain()
         return
 
-    # 2) Leer el nombre de archivo
+    #leo el nombre de archivo
     filename_line = await reader.readline()
     filename = filename_line.decode().strip()
 
-    # 3) Leer el contenido hasta '<END>'
+    username_line = await reader.readline()
+    username = username_line.decode().strip()
+
+    #leo el contenido hasta '<END>'
     content_buffer = b""
     while True:
         chunk = await reader.read(1024)
         if not chunk:
-            # Se cerró conexión antes de <END>
+            #se cierra conexión antes de <END>
             writer.write(b"Error: conexion cerrada inesperadamente\n")
             await writer.drain()
             return
 
         end_pos = chunk.find(b"<END>")
         if end_pos != -1:
-            # Encontramos <END>, concatenamos lo anterior
+            #lee <END>, concatenamos lo anterior
             content_buffer += chunk[:end_pos]
-            # Ignoramos lo que sigue de <END> en este chunk
             break
         else:
             content_buffer += chunk
 
-    # Encolar la petición al worker
+    #encola la petición al worker
     #request_queue.put(("upload", filename, content_buffer))
     #llamo a celery
-    result_async = upload_file.delay(filename, content_buffer)
+    result_async = upload_file.delay(filename, content_buffer, username)
     result = result_async.get()
 
-    # Esperar la respuesta
+    #espera la respuesta
     writer.write(f"{result}\n".encode())
     await writer.drain()
     #result = response_queue.get()  # bloquea este hilo/corrutina hasta que llegue algo
@@ -102,23 +104,20 @@ async def handle_upload_async(parts, reader, writer):
 
 
 async def handle_download_async(parts, writer):
-    if len(parts) < 2:
-        writer.write(b"Error: falta nombre de archivo\n")
-        await writer.drain()
-        return
-
     filename = parts[1]
     result_async = download_file.delay(filename)
-    file_bytes = result_async.get()
-
-    if file_bytes is None:
-        writer.write(b"Error: Archivo no encontrado\n")
+    res = result_async.get()
+    
+    if isinstance(res, str) and res.startswith("Error:"):
+        writer.write(res.encode())
+        await writer.drain()
+        return
     else:
-        writer.write(file_bytes)
+        writer.write(res)
         writer.write(b"EOF")
-    await writer.drain()
+        await writer.drain()
 
-    # Encolar la petición
+    #encola la petición
     #request_queue.put(("download", filename))
     #result = response_queue.get()
 
@@ -158,11 +157,13 @@ async def handle_delete_async(parts, writer):
 
 async def handle_list_async(writer):
     result_async = list_files.delay()
-    files = result_async.get()
-    if not files:
+    data = result_async.get()
+    if not data:
         writer.write(b"No se encontraron archivos\n")
     else:
-        writer.write(("\n".join(files) + "\n").encode())
+        print("[DEBUG] list data repr:", repr(data))
+        writer.write(data.encode())
+        #writer.write(("\n".join(files) + "\n").encode())
     await writer.drain()
 
     #request_queue.put(("list", None))
