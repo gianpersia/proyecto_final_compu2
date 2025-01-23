@@ -1,0 +1,7 @@
+aiofiles==24.1.0
+celery==5.4.0
+click==8.1.8
+kombu==5.4.2
+python-dateutil==2.9.0.post0
+redis==5.2.1
+tzdata==2024.2

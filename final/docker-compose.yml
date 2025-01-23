@@ -1,0 +1,37 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: final-server
+    ports:
+      - "8080:8080"  #mapeo el puerto del contenedor al de mi pc
+    volumes:
+      #- ./src:/app
+      - ./nube:/app/nube  #sincronizo la carpeta de mi pc con la del contenedor
+    command: python server_asyncio.py
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  redis:
+    image: redis:6.2
+    container_name: final-redis
+    ports:
+      - "6379:6379"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: final-worker
+    volumes:
+      - ./src:/app
+    command: celery -A celery_app worker --loglevel=info
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
