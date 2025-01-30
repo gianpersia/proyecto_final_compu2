@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "metadata.db")
+#DB_PATH = os.path.join(os.path.dirname(__file__), "metadata.db")
+DB_PATH = "/app/db/metadata.db"
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:

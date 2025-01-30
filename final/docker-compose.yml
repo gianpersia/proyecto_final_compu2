@@ -8,6 +8,7 @@ services:
       - "8080:8080"  #mapeo el puerto del contenedor al de mi pc
     volumes:
       #- ./src:/app
+      - ./db_data:/app/db
       - ./nube:/app/nube  #sincronizo la carpeta de mi pc con la del contenedor
     command: python server_asyncio.py
     depends_on:
@@ -28,7 +29,9 @@ services:
       dockerfile: Dockerfile
     container_name: final-worker
     volumes:
-      - ./src:/app
+      #- ./src:/app
+      - ./db_data:/app/db
+      - ./nube:/app/nube
     command: celery -A celery_app worker --loglevel=info
     depends_on:
       - redis

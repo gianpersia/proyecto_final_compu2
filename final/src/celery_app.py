@@ -7,7 +7,8 @@ init_db()
 
 celery_app = Celery("nube_app", broker="redis://localhost:6379/0", backend="redis://localhost:6379/0")
 
-STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube/Subidos"
+#STORAGE_DIR = "/Users/gpersia/Documents/Facultad/proyecto_final_compu2/final/nube/Subidos"
+STORAGE_DIR = "/app/nube/Subidos"
 
 @celery_app.task
 def upload_file(filename, content_bytes, username):

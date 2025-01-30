@@ -38,26 +38,35 @@ def send_command(server, port, command, filepath=None, username=None):
             print("Servidor dice:", response.strip())
 
         elif command.startswith("download"):
-            response = client_socket.recv(1024)
-            if response.startswith(b"Error:"):
-                print(response.decode())
-            else:
+            #response = client_socket.recv(1024)
+            #if response.startswith(b"Error:"):
+            #    print(response.decode())
+            #else:
             #espero recibir el contenido y luego la senal de finalizacion
             # 'command' podría ser "download file.txt"
-                content = response
-                while True:
-                    chunk = client_socket.recv(1024)
-                    if not chunk:
+                #content = response
+            content = bytearray()
+            while True:
+                chunk = client_socket.recv(1024)
+                if not chunk:
                         # Se cerró conexión
-                        break
+                    break
                     # Buscamos "EOF"
-                    if b"EOF" in chunk:
+                eof_index = chunk.find(b"EOF")
+                if eof_index != -1:
+                    #if b"EOF" in chunk:
                         # Separar la parte previa a "EOF"
-                        before_eof, _, _ = chunk.partition(b"EOF")
-                        content += before_eof
-                        break
-                    else:
-                        content += chunk
+                        #before_eof = chunk.split(b"EOF", 1)[0]
+                        #content += before_eof
+                    content.extend(chunk[:eof_index])
+                    break
+                else:
+                        #content += chunk
+                    content.extend(chunk)
+
+            if content.startswith(b"Error:"):
+                print(content.decode())
+            else:
             
             # reviso si se trata de un error
             # Podría ser "Error: Archivo no encontrado"
@@ -70,7 +79,7 @@ def send_command(server, port, command, filepath=None, username=None):
                 download_path = os.path.join(DOWNLOAD_DIR, filename)
                 with open(download_path, 'wb') as f:
                     f.write(content)
-                    print(f"Archivo descargado: {download_path}")
+                print(f"Archivo descargado: {download_path}")
 
         elif command.startswith("delete"):
             #eperamos un mensaje de archivo eliminado o de error."
@@ -78,7 +87,7 @@ def send_command(server, port, command, filepath=None, username=None):
             print(response.strip())
 
         elif command.startswith("list"):
-            #recibo la lista de archivos o mensaje
+            # la lista de archivos o mensaje
             response = client_socket.recv(4096).decode()
             print(response.strip())
 
